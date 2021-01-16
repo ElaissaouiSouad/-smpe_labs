@@ -1,0 +1,103 @@
+---
+title: "French given names per year per department by SOUAD ELAISSAOUI"
+output: html_notebook
+---
+
+The aim of the activity is to develop a methodology to answer a specific question on a given dataset. 
+
+The dataset is the set of Firstname given in France on a large period of time. 
+[given names data set of INSEE](https://www.insee.fr/fr/statistiques/fichier/2540004/dpt2017_txt.zip), we choose this dataset because it is sufficiently large, you can't do the analysis by hand, the structure is simple
+
+
+You need to use the _tidyverse_ for this analysis. Unzip the file _dpt2019_txt.zip_ (to get the **dpt2019.csv**). Read in R with this code. Note that you might need to install the `readr` package with the appropriate command.
+
+## Download Raw Data from the website
+
+```{r}
+file = "dpt2019_txt.zip"
+if(!file.exists(file)){
+download.file("https://www.insee.fr/fr/statistiques/fichier/2540004/dpt2019_csv.zip",
+destfile=file)
+}
+unzip(file)
+
+```
+## Build the Dataframe from file
+
+```{r}
+library(tidyverse)
+
+```
+
+```{r}
+library(ggplot2)
+options(dplyr.summarise.inform=F)
+# FirstNames <- read_delim("dpt2019.csv",delim=";");
+namedata <- read.csv(file = 'dpt2019.csv', sep = ';')
+```
+
+## First step is : Filter out incomplete data
+
+```{r}
+FirstNames = filter(namedata, annais != "XXXX" & dpt != "XX" & preusuel != "_PRENOMS_RARES")
+tail(FirstNames[complete.cases(FirstNames),],30)
+```
+
+1.1 Choose a firstname and analyse its frequency along time :
+
+```{r}
+ChoosenFirstName = filter(FirstNames, as.numeric(as.character(annais)) >= 1920 & (preusuel == "ZULMA"))
+ChoosenFirstName = ChoosenFirstName %>%
+group_by(annais) %>%
+summarise(nombre = sum(nombre))
+ggplot(data = ChoosenFirstName, aes(x=annais, y=nombre))+geom_point()
+```
+1.2 Compare several firstnames frequency :
+
+```{r}
+CompareFirstNames = filter(FirstNames, as.numeric(as.character(annais)) >= 1920 & (preusuel == "ZUZANNA" | preusuel == "ZULMA" | preusuel == "GIRARD"))
+CompareFirstNames = CompareFirstNames %>%
+group_by(annais, preusuel) %>%
+summarise(nombre = sum(nombre))
+q <- ggplot(data = CompareFirstNames, aes(x=annais, y=nombre, color = preusuel))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+2.1 Establish by gender the most given firstname by year.  
+
+```{r}
+MostGivenFirstName = FirstNames %>%
+group_by(sexe, annais) %>%
+filter(nombre == max(nombre) & as.numeric(as.character(annais)) >= 1995)
+q <- ggplot(data = MostGivenFirstName, aes(x=annais, y=nombre, shape = factor(sexe), color = preusuel))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+2.2 Analyse the evolution of the most frequent firstname for each gender.
+
+```{r}
+MostGivenFirstName = filter(FirstNames, as.numeric(as.character(annais)) >= 1990 & (preusuel == "ADAM" | preusuel == "EMMA"))
+MostGivenFirstName = MostGivenFirstName %>%
+group_by(annais, preusuel) %>%
+summarise(nombre = sum(nombre))
+q <- ggplot(data = MostGivenFirstName, aes(x=annais, y=nombre, color = preusuel))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+-We can conclude from the graphs, these two names were not the most popular before 1990 ,  then they become one of the most popular one, and finally from 2014,  they start to fading again.
+
+
+3. Optional : Which department has a larger variety of names along time ? Is there some sort of geographical correlation with the data?
+
+```{r}
+CountUniqueNames = FirstNames %>%
+filter(as.numeric(as.character(annais)) >= 1990) %>%
+group_by(annais, dpt) %>%
+summarise(Unique_Elements = n_distinct(preusuel))
+CountUniqueNamesFiltered = CountUniqueNames %>%
+filter(Unique_Elements == max(Unique_Elements))
+q <- ggplot(data = CountUniqueNamesFiltered, aes(x=annais, y=Unique_Elements, color = dpt))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+-Based on the result of data analysis, we can conclude tha the department 75 has the highest variety. 
+
+-Yes, because the department 75 is the second populated department in France.
